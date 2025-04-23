@@ -1,0 +1,53 @@
+# Sensitive information
+.env
+config/.env
+
+# Data files
+data/balance_history.json
+
+# Python cache files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+
+# Virtual environments
+venv/
+env/
+.env/
+
+# IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Logs
+*.log
+logs/
+
+# Backup files
+*.bak
+*.backup
+*.old
+
+# MT5 specific files
+*.ex4
+*.ex5
+*.mqh
+*.mq4
+*.mq5
+
+# Windows specific files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# macOS specific files
+.DS_Store
+.AppleDouble
+.LSOverride

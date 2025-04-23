@@ -1,0 +1,104 @@
+{
+    "trading": {
+        "currency_pairs": [
+            "EURUSD",
+            "GBPUSD",
+            "EURGBP",
+            "USDJPY",
+            "AUDUSD",
+            "USDCAD",
+            "EURJPY",
+            "GBPJPY",
+            "AUDJPY",
+            "XAUUSD"
+        ],
+        "timeframes": {
+            "analysis": ["M5", "M15", "H1", "H4", "D1"],
+            "execution": "M15",
+            "short_term": ["M5", "M15"],
+            "medium_term": ["H1", "H4"],
+            "long_term": ["D1"],
+            "primary": "H4"
+        },
+        "trade_duration": {
+            "flexible_exit": true,
+            "use_trailing_stop": true,
+            "trailing_stop_activation": 1.0,
+            "trailing_stop_distance": 0.5
+        },
+        "risk_management": {
+            "risk_percent": 0.75,
+            "max_balance_percent": 5.0,
+            "take_profit_levels": [1.5, 2.75, 4.75],
+            "position_sizing": "risk_based",
+            "flexible_exits": {
+                "enabled": true,
+                "use_trailing_stop": true,
+                "trailing_activation": 1.0,
+                "trailing_distance": 0.5,
+                "partial_take_profits": true,
+                "tp_percentages": [0.33, 0.33, 0.34],
+                "early_exit_conditions": {
+                    "opposing_breaker": true,
+                    "opposing_order_block": true,
+                    "opposing_fvg": true,
+                    "price_rejection": true
+                }
+            },
+            "balance_monitoring": {
+                "enabled": true,
+                "initial_balance": 80649.85,
+                "drawdown_limit_percent": 15.0,
+                "pause_trading_on_drawdown": true
+            }
+        },
+        "auto_trading": true,
+        "min_confidence": 0.5
+    },
+    "indicators": {
+        "moving_averages": {
+            "fast_period": 9,
+            "slow_period": 21,
+            "trend_period": 50
+        },
+        "ict_model": {
+            "order_blocks": true,
+            "fair_value_gaps": true,
+            "liquidity_levels": true,
+            "ict_2024": {
+                "enabled": true,
+                "relative_equal_levels": true,
+                "pd_array": true,
+                "rel_equal_tolerance": 0.0002,
+                "lookback_period": 10
+            },
+            "pair_specific": {
+                "USDJPY": {
+                    "rel_equal_tolerance": 0.0003,
+                    "confidence_boost": 0.05
+                },
+                "AUDUSD": {
+                    "rel_equal_tolerance": 0.00025,
+                    "confidence_boost": 0.03
+                },
+                "GBPJPY": {
+                    "rel_equal_tolerance": 0.0004,
+                    "confidence_boost": 0.07
+                },
+                "XAUUSD": {
+                    "rel_equal_tolerance": 0.0005,
+                    "confidence_boost": 0.08
+                }
+            }
+        }
+    },
+    "notifications": {
+        "telegram_enabled": true,
+        "signal_frequency": "minute"
+    },
+    "data": {
+        "bars_to_analyze": 100,
+        "economic_calendar_enabled": true,
+        "economic_event_hours_window": 0.5
+    }
+}
