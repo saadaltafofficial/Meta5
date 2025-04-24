@@ -57,7 +57,7 @@ class StandaloneTrader:
         
         # Trading parameters from config
         self.currency_pairs = self.config['trading'].get('currency_pairs', ['EURUSD', 'GBPUSD'])
-        self.min_confidence = self.config['trading'].get('min_confidence', 0.4)
+        self.min_confidence = self.config['trading'].get('min_confidence', 0.15)
         self.risk_percent = self.config['trading']['risk_management'].get('risk_percent', 1.5)
         self.max_balance_percent = self.config['trading']['risk_management'].get('max_balance_percent', 10.0)
         self.auto_trading = self.config['trading'].get('auto_trading', True)
@@ -915,8 +915,8 @@ class StandaloneTrader:
             
             # === STEP 4: Combine signals ===
             # Weight the signals (ICT analysis has higher weight)
-            traditional_weight = 0.4
-            ict_weight = 0.6
+            traditional_weight = 0.5  # Changed from 0.4 to 0.5 for more balanced weighting
+            ict_weight = 0.5  # Changed from 0.6 to 0.5 for more balanced weighting
             
             # Get actions and confidences
             trad_action = traditional_signal.get('action', 'HOLD')
@@ -928,15 +928,32 @@ class StandaloneTrader:
             buy_confidence = 0
             sell_confidence = 0
             
+            # For traditional signals
             if trad_action == 'BUY':
                 buy_confidence += trad_conf * traditional_weight
             elif trad_action == 'SELL':
                 sell_confidence += trad_conf * traditional_weight
-                
+            
+            # For ICT signals - even if HOLD, check if confidence boost suggests a direction
             if ict_action == 'BUY':
                 buy_confidence += ict_conf * ict_weight
             elif ict_action == 'SELL':
                 sell_confidence += ict_conf * ict_weight
+            elif ict_action == 'HOLD' and ict_conf > 0:
+                # Check if there are confluence factors suggesting a direction
+                confluence_factors = ict_signal.get('confluence_factors', [])
+                if any('Bullish' in factor for factor in confluence_factors):
+                    # Apply half the confidence to BUY
+                    buy_confidence += (ict_conf * ict_weight) * 0.5
+                    logger.info(f"Applied partial ICT confidence to BUY due to bullish confluence factors: {ict_conf:.4f}")
+                elif any('Bearish' in factor for factor in confluence_factors):
+                    # Apply half the confidence to SELL
+                    sell_confidence += (ict_conf * ict_weight) * 0.5
+                    logger.info(f"Applied partial ICT confidence to SELL due to bearish confluence factors: {ict_conf:.4f}")
+            
+            # Log confidence values for debugging
+            logger.info(f"Signal confidence calculation for {pair}: ICT={ict_action}({ict_conf:.4f}), Traditional={trad_action}({trad_conf:.4f})")
+            logger.info(f"Combined confidence: BUY={buy_confidence:.4f}, SELL={sell_confidence:.4f}, Threshold={self.min_confidence:.4f}")
             
             # Determine final action based on highest confidence
             if buy_confidence > sell_confidence and buy_confidence > self.min_confidence:

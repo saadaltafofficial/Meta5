@@ -29,6 +29,10 @@ load_dotenv('config/.env')
 # Add all project directories to the Python path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+# Import and apply the confidence fix
+from src.ict.apply_confidence_fix import apply_confidence_fix
+apply_confidence_fix()
+
 # Import the main trader class
 from src.core.standalone_trader import main
 

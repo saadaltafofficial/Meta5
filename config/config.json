@@ -10,7 +10,10 @@
             "EURJPY",
             "GBPJPY",
             "AUDJPY",
-            "XAUUSD"
+            "XAUUSD",
+            "USDCHF",
+            "NZDUSD",
+            "USDZAR"
         ],
         "timeframes": {
             "analysis": ["M5", "M15", "H1", "H4", "D1"],
@@ -53,7 +56,7 @@
             }
         },
         "auto_trading": true,
-        "min_confidence": 0.5
+        "min_confidence": 0.20
     },
     "indicators": {
         "moving_averages": {

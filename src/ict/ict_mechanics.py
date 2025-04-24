@@ -101,17 +101,25 @@ def identify_market_structure(df):
     df['lower_high'] = lower_high_mask
     df['lower_low'] = lower_low_mask
 
+    # Initialize market structure shift masks
     bullish_mss_mask = pd.Series(False, index=df.index)
     bearish_mss_mask = pd.Series(False, index=df.index)
+    
+    # Initialize the bullish_mss and bearish_mss columns first to avoid access errors
+    df['bullish_mss'] = bullish_mss_mask
+    df['bearish_mss'] = bearish_mss_mask
 
     for i in range(4, len(df)):
         idx = df.index[i]
         if df['higher_low'].iloc[i-2]:
             recent_bullish_mss = False
-            for k in range(i-3, i):
-                if 0 <= k < len(df) and df['bullish_mss'].iloc[k]:
-                    recent_bullish_mss = True
-                    break
+            try:
+                for k in range(i-3, i):
+                    if 0 <= k < len(df) and df['bullish_mss'].iloc[k]:
+                        recent_bullish_mss = True
+                        break
+            except Exception:
+                recent_bullish_mss = False
             if not recent_bullish_mss:
                 for j in range(i-3, 0, -1):
                     if df['swing_high'].iloc[j]:
@@ -121,10 +129,13 @@ def identify_market_structure(df):
 
         if df['lower_high'].iloc[i-2]:
             recent_bearish_mss = False
-            for k in range(i-3, i):
-                if 0 <= k < len(df) and df['bearish_mss'].iloc[k]:
-                    recent_bearish_mss = True
-                    break
+            try:
+                for k in range(i-3, i):
+                    if 0 <= k < len(df) and df['bearish_mss'].iloc[k]:
+                        recent_bearish_mss = True
+                        break
+            except Exception:
+                recent_bearish_mss = False
             if not recent_bearish_mss:
                 for j in range(i-3, 0, -1):
                     if df['swing_low'].iloc[j]:
@@ -321,6 +332,23 @@ def identify_liquidity_pools(data):
     buy_liquidity_levels = pd.Series(np.nan, index=df.index)
     sell_liquidity_levels = pd.Series(np.nan, index=df.index)
     
+    # Ensure swing_low and swing_high columns exist
+    if 'swing_low' not in df.columns:
+        # Create a simple swing low detection if the column doesn't exist
+        df['swing_low'] = False
+        for i in range(2, len(df)-2):
+            if df['low'].iloc[i] < df['low'].iloc[i-1] and df['low'].iloc[i] < df['low'].iloc[i-2] and \
+               df['low'].iloc[i] < df['low'].iloc[i+1] and df['low'].iloc[i] < df['low'].iloc[i+2]:
+                df.loc[df.index[i], 'swing_low'] = True
+                
+    if 'swing_high' not in df.columns:
+        # Create a simple swing high detection if the column doesn't exist
+        df['swing_high'] = False
+        for i in range(2, len(df)-2):
+            if df['high'].iloc[i] > df['high'].iloc[i-1] and df['high'].iloc[i] > df['high'].iloc[i-2] and \
+               df['high'].iloc[i] > df['high'].iloc[i+1] and df['high'].iloc[i] > df['high'].iloc[i+2]:
+                df.loc[df.index[i], 'swing_high'] = True
+    
     # Identify Buy Liquidity (clusters of swing lows)
     for i in range(5, len(df) - 5):
         idx = df.index[i]  # Get the actual index for this position
@@ -479,6 +507,12 @@ def calculate_ote_levels(data):
     bearish_ote_mask = pd.Series(False, index=df.index)
     bullish_ote_levels = pd.Series(np.nan, index=df.index)
     bearish_ote_levels = pd.Series(np.nan, index=df.index)
+    
+    # Ensure required columns exist
+    required_columns = ['bullish_ob', 'bearish_ob', 'bullish_ob_top', 'bullish_ob_bottom', 'bearish_ob_top', 'bearish_ob_bottom']
+    for col in required_columns:
+        if col not in df.columns:
+            df[col] = False if col in ['bullish_ob', 'bearish_ob'] else np.nan
     
     # Calculate OTE levels based on order blocks and FVGs
     for i in range(len(df)):
@@ -668,6 +702,19 @@ def create_pd_array(data, bias='BULLISH', lookback=20, current_time=None):
     """
     # Create a copy to avoid modifying the original
     df = data.copy()
+    
+    # Ensure all required columns exist before processing
+    required_columns = ['bullish_fvg', 'bearish_fvg', 'bullish_ob', 'bearish_ob', 'rel_equal_high', 'rel_equal_low']
+    for col in required_columns:
+        if col not in df.columns:
+            df[col] = False
+            
+    # Ensure all required level columns exist
+    level_columns = ['bullish_fvg_top', 'bullish_fvg_bottom', 'bearish_fvg_top', 'bearish_fvg_bottom', 
+                     'bullish_ob_top', 'bullish_ob_bottom', 'bearish_ob_top', 'bearish_ob_bottom']
+    for col in level_columns:
+        if col not in df.columns:
+            df[col] = 0.0
     
     # Initialize PD-array dictionary
     pd_array = {
@@ -909,11 +956,11 @@ def evaluate_flexible_duration_setup(df, timeframe='H4', daily_bias='NEUTRAL', c
     Returns:
         dict: Trade setup details with expected duration and exit strategy
     """
-    # Initialize setup dictionary
+    # Initialize setup dictionary with a baseline confidence
     setup = {
         'action': 'HOLD',
-        'confidence': 0,
-        'setup_type': 'None',
+        'confidence': 0.1,  # Added baseline confidence instead of 0
+        'setup_type': 'Flexible ICT Analysis',
         'entry': None,
         'stop_loss': None,
         'take_profit': None,
@@ -970,8 +1017,20 @@ def evaluate_flexible_duration_setup(df, timeframe='H4', daily_bias='NEUTRAL', c
     has_rel_equal_low = recent_df['rel_equal_low'].iloc[-10:].any() if 'rel_equal_low' in recent_df.columns else False
     
     # 5. Check for market structure shifts
-    has_bullish_mss = recent_df['bullish_mss'].iloc[-15:].any() if 'bullish_mss' in recent_df.columns else False
-    has_bearish_mss = recent_df['bearish_mss'].iloc[-15:].any() if 'bearish_mss' in recent_df.columns else False
+    # Ensure all required market structure columns exist
+    required_columns = ['bullish_mss', 'bearish_mss', 'swing_high', 'swing_low', 'higher_high', 'higher_low', 'lower_high', 'lower_low']
+    for col in required_columns:
+        if col not in recent_df.columns:
+            recent_df[col] = False
+    
+    # Safely check for market structure shifts
+    try:
+        has_bullish_mss = recent_df['bullish_mss'].iloc[-15:].any()
+        has_bearish_mss = recent_df['bearish_mss'].iloc[-15:].any()
+    except Exception:
+        # Default to False if any error occurs
+        has_bullish_mss = False
+        has_bearish_mss = False
     
     # Evaluate BULLISH setups (strict ICT rules)
     if daily_bias in ['BULLISH', 'NEUTRAL']:
@@ -1183,11 +1242,11 @@ def evaluate_ict_setup(data, daily_bias=None):
     # Create a copy to avoid modifying the original
     df = data.copy()
     
-    # Initialize setup dictionary
+    # Initialize setup dictionary with a small baseline confidence
     setup = {
         'action': 'HOLD',
-        'confidence': 0,
-        'setup_type': None,
+        'confidence': 0.1,  # Added baseline confidence instead of 0
+        'setup_type': 'Basic ICT Analysis',
         'entry': None,
         'stop_loss': None,
         'take_profit': None,
@@ -1219,7 +1278,16 @@ def evaluate_ict_setup(data, daily_bias=None):
     # 1. PREMIUM BUY SETUP: Bullish Order Block + Fair Value Gap + Market Structure Shift
     if daily_bias in ['BULLISH', 'NEUTRAL']:
         # Check for bullish market structure shift (MSS)
-        has_bullish_mss = recent_df['bullish_mss'].iloc[-15:].any()
+        # Ensure bullish_mss column exists
+        if 'bullish_mss' not in recent_df.columns:
+            recent_df['bullish_mss'] = False
+            
+        # Safely check for market structure shifts
+        try:
+            has_bullish_mss = recent_df['bullish_mss'].iloc[-15:].any()
+        except Exception:
+            # Default to False if any error occurs
+            has_bullish_mss = False
         
         # Check for bullish order blocks
         has_bullish_ob = recent_df['bullish_ob'].iloc[-15:].any()
@@ -1301,8 +1369,8 @@ def evaluate_ict_setup(data, daily_bias=None):
             else:
                 premium_confidence += 0.1
         
-        # If we have a premium setup with sufficient confidence
-        if premium_confidence >= 0.5 and has_bullish_ote:
+        # If we have a premium setup with sufficient confidence (lowered threshold)
+        if premium_confidence >= 0.3 and has_bullish_ote:  # Lowered from 0.5 to 0.3
             setup['action'] = 'BUY'
             setup['confidence'] = min(premium_confidence, 1.0)  # Cap at 1.0
             setup['setup_type'] = 'Premium ICT Buy'
@@ -1417,8 +1485,8 @@ def evaluate_ict_setup(data, daily_bias=None):
             else:
                 premium_confidence += 0.1
         
-        # If we have a premium setup with sufficient confidence
-        if premium_confidence >= 0.5 and has_bearish_ote:
+        # If we have a premium setup with sufficient confidence (lowered threshold)
+        if premium_confidence >= 0.3 and has_bearish_ote:  # Lowered from 0.5 to 0.3
             setup['action'] = 'SELL'
             setup['confidence'] = min(premium_confidence, 1.0)  # Cap at 1.0
             setup['setup_type'] = 'Premium ICT Sell'

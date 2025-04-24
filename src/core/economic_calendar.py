@@ -104,7 +104,14 @@ class EconomicCalendar:
             
             # Fetch economic calendar from MT5
             logger.info(f"Fetching economic calendar from MT5 from {from_date} to {to_date}")
-            calendar = mt5.economic_calendar_get(from_date, to_date)
+            # Try to use economic_calendar_get if available, otherwise use sample data
+            try:
+                calendar = mt5.economic_calendar_get(from_date, to_date)
+            except AttributeError:
+                logger.warning("MetaTrader5 module does not have economic_calendar_get function, using sample data")
+                self.events_cache = self._get_sample_events()
+                self.cache_expiry = datetime.now() + timedelta(hours=1)
+                return
             
             if calendar is None:
                 logger.warning(f"Failed to get economic calendar from MT5: {mt5.last_error()}")
